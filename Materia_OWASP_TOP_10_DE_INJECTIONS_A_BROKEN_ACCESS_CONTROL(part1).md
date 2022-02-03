@@ -1,9 +1,9 @@
 # Formaçao OWASP
 iniciado em 20/01/2022
 
-terminado em Em Andamento
+terminado em 03/02/2022
 
-[certificate]() 
+[certificate](https://cursos.alura.com.br/certificate/5f456457-c213-4f3f-b10b-1f8a60d91f3d) 
 
 Table of contents
 - [Formaçao OWASP](#formaçao-owasp)
@@ -24,6 +24,12 @@ Table of contents
     - [como prevenir?](#como-prevenir)
     - [o que aprendemos?](#o-que-aprendemos-2)
   - [A4 XML external entities](#a4-xml-external-entities)
+    - [como prevenir?](#como-prevenir-1)
+    - [o que aprendemos?](#o-que-aprendemos-3)
+  - [A5 Broken Access Control](#a5-broken-access-control)
+    - [example attack scenarios](#example-attack-scenarios)
+    - [como previnir?](#como-previnir)
+    - [o que aprendemos?](#o-que-aprendemos-4)
 
 ## OWASP
 
@@ -834,3 +840,306 @@ tudo isso é importante porque esses dados sao sensiveis e voce nao quer que ele
 
 
 ## A4 XML external entities
+entao, como eu descubro se minha aplicaçao esta vulneravel ao problema do XMl external entities?
+
+se sua aplicaçao aceita que o cliente envie para voce XML, ate mesmo por upload, principalmente de fontes nao confiaveis, entao voce esta vulneravel.
+
+entao, no XML temos um problema parecido com o injection, que é o atacante colocar algo no XML que revele ou execute açoes na aplicaçao.
+
+entao, se voce esta trabalhando com processadores de XML, voce tem um risco.
+
+um XML basico é formado por tags que representam os objetos e os parametros dos objetos:
+
+```
+<contato> 
+  <nome>joao da silva</nome>
+  <telefone>12345678</telefone>
+</contato>
+```
+
+isso é o core do corpo.
+
+entao um corpo de XML tem uma tag raiz, e a partir dessa tag rais, vai tendo as tags internas.
+
+entao nessa situaçao parece similar ao JSON, porque no JSON voce vai ter um objeto rais e dentro dele outros objetos.
+
+voce vai ter certos atributos, como por exemplo telefone pessoal ou residencial e entao voce consegue criar uma estrutura ainda mais complexa.
+
+entao com XML da para fazer muitas coisas.
+
+mas ainda nao estamos representando a estrutura do dado.
+
+entao podemos querer ter um cabeçalho dizendo que é um XML, usando a versao 1.0 e que usa o encoding UTF-8, por exemplo.
+
+alem disso eu posso querer descrever algo sobre essa estrutura, como por exemplo:
+
+'olha, este XML aqui é um documento que segue algumas regras. nas regras que esse XML segue, eu so posso ter um contato, obviamente porque ele é a raiz. mas eu posso ter varios telefones e o tipo so pode ser residencial, comercial ou celular.'
+
+o esquema do XML pode ser descrito aqui em cima. tem varios formatos de esquema de XML, como por exemplo DTD, entre outros.
+
+```
+<?xml version="1.0> encoding="UTF-8"?>
+
+<contato> 
+  <nome>joao da silva</nome>
+  <telefone tipo="residencial">12345678</telefone>
+  <telefone tipo="comercial">12345678</telefone>
+  <telefone tipo="celular">12345678</telefone>
+</contato>
+```
+
+entao tem varias coisas que nos podemos fazer aqui no cabeçalho do XML, dentre elas, definir estruturas.
+
+podemos ir muito alem, inclusive pode estar definido no XML a estrutura, refrenciando estruturas externas.
+
+qual é o problema?
+em cima, na definiçao da estutura do noss XML, é possivel fazer ataques.
+
+em XML é possivel fazer atalhos, quase como designar uma variavel e utiliza-la dentro do XML.
+
+e nessa designaçao da variavel, podemos injetar codigo malicioso.
+
+o que voce pode fazer no cabeçalho? 
+
+por exemplo pode declarar.
+
+```
+<?xml version="1.0> encoding="UTF-8"?>
+<!DOCTYPE contato ...
+  <!ENTITY meuNome TEXT "Guilherme">
+<contato> 
+  <nome>&meuNome;</nome>
+  <telefone tipo="residencial">12345678</telefone>
+  <telefone tipo="comercial">12345678</telefone>
+  <telefone tipo="celular">12345678</telefone>
+</contato>
+```
+
+entao usando o DOCTYPE podemos definir uma entidade, neste caso chamada de contato.
+
+o importante é que em algum momento aqui detrno do mei DOCTYPE contato, ele coloca que existe uma entidae chamada 'meuNome' e que essa entidade poderia ser simplesmente um texto (TEXT) com o valor 'Guilherme'
+
+entao com algo similar a isso, nao exatamente isso, o que eu estaria fazendo seria:
+
+estamos enviando um XML valido.
+
+nao exatamente esse em que eu substitui essa entidade e meu nome por "guilherme".
+
+entao temos criado uma entidade e essa entidade é utilizada por todo o meu XML, para ficar evuitanto um copy e paste enorme.
+
+isso é uma entidade declarada dentro do proprio XML.
+
+e o perigo é uma entidade externa, so que essa entidade nao precisa ser algo interno da aplicaçao, ela pode ser algo do sistema, o 'system'.
+
+e aqui pode ser, como no exemplo da OWASP, um 'file:///etc/passwd' e o que ele esta falando aqui é que a entidade 'meuNome' é o conteúdo deste arquivo.
+
+```
+<?xml version="1.0> encoding="UTF-8"?>
+<!DOCTYPE contato ...
+  <!ENTITY meuNome SYSTEM "file:///etc/passwd">
+<contato> 
+  <nome>&meuNome;</nome>
+  <telefone tipo="residencial">12345678</telefone>
+  <telefone tipo="comercial">12345678</telefone>
+  <telefone tipo="celular">12345678</telefone>
+</contato>
+```
+
+entao exemplos de ataques sao:
+
+numerous public XXE issues have been discovered, including attacking embedded devices. XXE occurs in a log of unexpected places, including deeply nested dependencies.
+the easiest way is to upload a malicious XML file, if accepted:
+
+* scenario 1: the attacker attempts to extract data from the server:
+
+```
+<?xml version="1.0> encoding="UTF-8"?>
+<!DOCTYPE foo [
+  <!ELEMENT foo ANY>
+  <!ENTITY xxe SYSTEM "file:///etc/passwd">]>
+<foo>&xxe</foo> 
+```
+
+* scenario 2: an attacker probes the server´s private network by changing the above ENTITY line to:
+
+```
+<!ENTITY xxe SYSTEM "https://192.168.1.1/private">]>
+```
+
+* scenario 3: an attacker attempts a denial of service attack by including a potentially endlesss file:
+
+```
+<!ENTITY xxe SYSTEM "file:///dev/random">]>
+```
+e o que acontece? 
+
+se o parser do XML nao estiver configurado adequadamente para nao ler a entidade externa, ele vai ler a entidade externa e vai pegar todo o conteudo do arquivo e vai colocar dentro do XML, nos atalhos.
+
+e imagine que voce vai cadastrar agora esse contato no seu sistema.
+
+o atacante olha nos contatos dela e la terá todas as passwords e senhas gravadas no local dos contatos, ou qualquer informaçao que ele pegou, no caso do file:///etc/passwd os usuarios e senhas no sistema linux.
+
+entao isto é super perigoso!
+
+a entidade externa permite que um parser de XML carregue as informaçoes de um lugar de fora, mas nao esta limitando um lugar de fora, pode ser inclusive do sistema operacional.
+
+nos carregamos arquivos e abrimos a porta para que esses dados sejam colocados aqui desta maneira.
+
+eu acesso depois em algum outro lugar o resultado desse meu XML e no resultado terá as informaçoes expostas.
+
+entao, o atacante tenta, por exemplo, extrair os dados do 'file:///etc/passwd' colocando aqui no 'foo' este conteudo. ou ele pode fazer outras coisas, nao precisa pegar conteudo de arquivo, pode tentar descobrir a estrutura da rede.
+
+entao ele coloca um "SYSTEM "https://192.168.1.1/private"" e com isso se a aplicaçao aceitar o XML, quer dizer que essa requisiçao HTTP funcionou, entao "192.168.1.1" existe!
+e "/private" sera o router
+
+a configuraçao do router esta aberta?
+
+porque a configuraçao do router em geral, so esta aberta para dentro da propria rede se tiver em usuario administrador e senha.
+
+uma requisiçao dessas vai trazer as informaçoes ja e voce consegue trazer as informaçoes e descobrir mais sobre a sua rede.
+
+ou ainda voce faz um denial of service e detonar a rede, porque se ele mandar acessar um arquivo infinito, tipo o "file:///dev/random", que na verdade nao é um arquivo, é uma fonte de numeros aleatorios, e a aplicaçao começa a ler desse arquivo, dessa fonte de numeros aleatorios, continua lendo e recebendo numeros aleatorios, entupindo a CPU, a memoria e o disco, ai voce começa a ter erros de I/O.
+
+percebeu o buraco aqui de um external entity? todo tipo de external entity é perigoso!
+
+nao so no XML, se voce tem outro formato ou qualquer coisa que aceita o seu cliente enviar uma URI para voce e voce acessar essa URI, ou um arquivo local que o seu cliente esta falando para voce o arquivo que é para acessar é perigosissimo!
+
+por padrao, DESATIVADO, com certeza!!!
+
+entao claro a sacada vai estar ligada com desativar isso.
+
+### como prevenir?
+
+developer training is essential to identify and mitigate XXE.
+
+besides that, preventing XXE requires:
+
+* whenever possible, use less complex data formats such as JSON and avoiding serialization of sensitive data
+  
+* patch or upgrade all XML processors and libraries in use by the application or on the underlying operational system. use dependency checkers. update SOAP to SOAP 1.2 or higher
+
+* disable XML external entity and DTD processing in all XML parsers in the application (you can look at the OWASP cheat sheet XXE Prevention)
+
+* implement positive ("whitelisting") server side validation, filtering or sanitization to prevent hostile within XML documents, headers or nodes
+
+* verify that XML or XSL file uploads functionality validates incoming XML using XSD validation or similar
+
+* SAST tools can help detect XXE in source code, although manual code review is the best alternative in large, complex applications with many integrations.
+
+if these controls are not possible, consider using virtual patching, API Security gateways, or web application firewalls (WAFs) to detect, monitor and block XXE attacks
+
+### o que aprendemos?
+* o que sao XML External Entities
+* o problema de entidades externas
+
+## A5 Broken Access Control
+o quinto risco apresentado na lista do OWASP top 10 de 2017 é o controle de acesso quebrado.
+
+este problema esta relacionado mais em tentar me logar como alguem e pegar usuario e senha de alguem ou acessar algo como se eu fosse alguem.
+
+é relacionado a acessar algo porque nao validamos se a pessoa tem esse acesso.
+
+embora algumas ferramentas consigam detectar isso, existem limites.
+
+em um site, por exemplo, imagine que voce logado tem acesso ao seu perfil e a URL seria a seguinte:
+
+www.meusite.com/perfil/1
+
+sendo o 1 o id do perfil. 
+
+o atacante, vendo que tem acesso ao perfil id 1, pode testar se tem acesso ao perfil id 2, etc.
+
+se o sistema de controle de acesso estiver quebrado, ele nao esta verificando se tem acesso ou nao a este perfil.
+
+se nao tivermos uma validaçao de que essa URI é acessavel pelo usuario, este controle esta quebrado.
+
+entao é importante que nos estejamos sempre validando o controle de acessos.
+
+mas como validamos isso?
+
+existem varias maneiras, em qualquer linguagem voce tera algum tipo de funçao de verificaçao de permissao.
+
+nela voce deve colocar a verificaçao de que aquele usuario logado tem permissao para ver os dados ou nao.
+
+a sacada é: 
+
+devemos ter essa verificaçao explicita, bem clara para que qualquer um olhando o codigo veja, porque se for implicita, podemos esquecer.
+
+a ideia é que o controle tem que garantir que um usuario nao possa fazer algo que nos nao tinhamos a intençao que ele pudesse e que nao teria permissao.
+
+e as falhas costumam ser graves, porque permitem acesso às informaçoes que nao era para terem sido informadas.
+
+modificaçoes, destruiçao e inserçao, para ele executar uma funçao do seu negocio.
+
+todas sao coisas que voce nao quer.
+
+os casos mais comuns nao sao todos de vulnerabilidade.
+
+* bypassing access control checks, modificando a URL
+
+isto acontece se a validaçao foi feita somente na hora de mostrar os links.
+
+se o usuario mudar o link, acessa a pagina errada sem permissao.
+
+* conseguir mais privilegios.
+
+entao o usuario, mesmo sem estar logado, consegue fingir e atuar como se estivesse logado e consegue tambem atuar como se fosse um administrador.
+
+* manipular metadados
+
+todos os metadados que estao ligados às permissoes sao perigosos e nos precisamos estar sempre validando.
+
+* CORS - Cross Origin Resource Sharing, com má configuraçao, permite que pessoas indevidas acessem a API.
+
+* HTTP verb attack
+
+outra maneira classica é tentar em vez do 'GET' fazer um 'POST' ou 'PUT' ou 'DELETE'.
+
+um atacante pode tentar coisas do genero, ou pode forçar a navegaçao em paginas autenticadas como um usuario nao autenticado.
+
+entao é bom ter essas coisas bem separadas.
+
+
+### example attack scenarios
+* scenario 1
+
+the application uses unverified data in a SQL call that is accessing account information:
+
+```
+pstm.setString(1, request.getParameter("acct"));
+ResultSet results = pstmt.executeQuery();
+```
+
+an attacker simply modifies de 'acct' parameter in the browser to send whatever account number they want. if not properly verified, the attacker can access any user´s account.
+
+http://example.com/app/accountinfo?acct=notmyacct
+
+* scenario 2
+
+an attacker simply force browsers to target URLs.
+admins rights are required for access to the admin page.
+
+http://example.com/app/getappinfo
+http://example.com/app/admin_getappinfo
+
+if an unauthenticated user can access either page, it´s a flaw. if a non-admin can access the admin page, this is a flaw.
+
+### como previnir?
+access control is only effective if enforced in trusted server-side code or server-less API, where the attacker cannot modify the access control check or metadata.
+
+* with the exception of public resources, deny by default
+* implement access control mechanisms once and re-use them throughout the application, including minimizing CORS usage
+* model access controls should enforce record ownership, rather than accepting that the user can create, read, update or delete any record
+* unique application business limit requirements should be enforced by domain models
+* disable web server directory listing and ensure file metadata (e.g. .git) and backup files are not present within web roots
+* log access control failures, alert admins when appropriate (e.g. repeated failues)
+* rate limit API and controller access to minimize the harm from automated attacking tooling
+* JWT tokens should be invalidated on the server after logout
+
+developers and QA staff should include functional access control unit and integration tests.
+
+### o que aprendemos?
+* controle explicito e implicito
+* perigo em modificaçoes de URIs
+* nao permitir trocas de chaves primarias e controlar chaves estrangeiras
+
